@@ -33,24 +33,35 @@ class DiagnosaController extends PenggunaController
         $arrCfKombine = [];
         $kepastian = [];
 
-        for ($i = 0; $i < count($request->kondisi); $i++) {
-            $arkondisi = explode("_", $request->kondisi[$i]);
+        // Ambil data gejala yang dipilih
+        $allZero = true;
+        foreach ($request->kondisi as $kondisiItem) {
+            $arkondisi = explode("_", $kondisiItem);
             $kondisi[] = ['gejala_id' => $arkondisi[0]];
             $kepastian[$arkondisi[0]] = $arkondisi[1];
 
-            if (strlen($request->kondisi[$i]) > 1) {
-                $argejala += [$arkondisi[0] => $arkondisi[1]];
-                $penyakits = Penyakit::with(['basis_pengetahuans' => function ($result) use ($kepastian) {
-                    $result->with('gejala')->whereIn('gejala_id', array_keys($kepastian));
-                }])->groupBy('id')->orderBy('id')->get();
+            if ($arkondisi[1] != 0) {
+                $allZero = false;
             }
         }
 
+        if ($allZero) {
+            $this->notification('success', 'Sehat', 'Kucing sehat tanpa gejala');
+            return redirect(route('pengguna.diagnosa.index'));
+        }
+
+        // Ambil data basis pengetahuan yang sesuai dengan gejala yang dipilih
+        $penyakits = Penyakit::with(['basis_pengetahuans' => function ($result) use ($kepastian) {
+            $result->with('gejala')->whereIn('gejala_id', array_keys($kepastian));
+        }])->groupBy('id')->orderBy('id')->get();
+
+        // Hitung CF gabungan untuk setiap basis pengetahuan
         foreach ($penyakits as $penyakit) {
             foreach ($penyakit->basis_pengetahuans as $bp) {
                 $arrCfKombine[$penyakit->id][] = $bp->cf * $arbobot[$kepastian[$bp->gejala_id]];
             }
 
+            // Hitung CF total untuk setiap penyakit
             foreach ($arrCfKombine as $key => $cfKombine) {
                 $cfBaru = 0;
                 $jumlahCf = count($cfKombine);
@@ -70,7 +81,10 @@ class DiagnosaController extends PenggunaController
             }
         }
 
+        // Urutkan Certainty Factor CF total dari yang terbesar
         arsort($cfHasil);
+
+        // Simpan data diagnosa ke database
         Diagnosa::create([
             'nik' => session('biodata')['nik'],
             'nama_pemilik' => session('biodata')['nama_pemilik'],
@@ -85,12 +99,12 @@ class DiagnosaController extends PenggunaController
             'presentase' => $cfHasil[array_key_first($cfHasil)]
         ]);
 
+        // Tampilkan data hasil diagnosa
         $title = $this->title;
         $bcrum = $this->bcrum('Hasil', route('pengguna.diagnosa.index'), $title);
         $gejalas = Gejala::all();
         return view('pengguna.diagnosa.analisa', compact('cfHasil', 'penyakits', 'kepastian', 'gejalas', 'title', 'bcrum'));
     }
-
 
     public function reset(Request $request)
     {
@@ -98,3 +112,4 @@ class DiagnosaController extends PenggunaController
         return redirect()->route('pengguna.biodata.index');
     }
 }
+

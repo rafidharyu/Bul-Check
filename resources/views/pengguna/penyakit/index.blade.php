@@ -2,12 +2,12 @@
 
 @section('content')
     <div class="container">
-        <div class="row row-cols-1 row-cols-md-3">
+        <div class="row row-cols-1 g-4">
             @foreach ($penyakits as $penyakit)
                 <div class="col mb-4">
                     <div class="card h-100">
                         <div class="position-absolute bg-dark px-3 py-2 text-white">Penyakit</div>
-                        <img src="{{ asset('assets/gambar/' . $penyakit->gambar) }}" class="card-img-top"
+                        <img src="{{ asset('assets/gambar/' . $penyakit->gambar) }}" class="card-img-top" height="500"
                             alt="{{ $penyakit->nama }}">
                         <div class="card-body">
                             <a href="{{ route('pengguna.penyakit.show', $penyakit->slug) }}">
